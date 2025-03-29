@@ -1,5 +1,5 @@
 use eframe::egui;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
@@ -47,14 +47,12 @@ impl ChatApp {
     fn try_connect(&mut self) {
         let addr = format!("{}:{}", self.ip, self.port);
         let tx = self.tx.clone();
-        thread::spawn(move || {
-            match TcpStream::connect(&addr) {
-                Ok(stream) => {
-                    let _ = tx.send(ThreadMessage::Connected(Ok(stream)));
-                }
-                Err(e) => {
-                    let _ = tx.send(ThreadMessage::Connected(Err(e.to_string())));
-                }
+        thread::spawn(move || match TcpStream::connect(&addr) {
+            Ok(stream) => {
+                let _ = tx.send(ThreadMessage::Connected(Ok(stream)));
+            }
+            Err(e) => {
+                let _ = tx.send(ThreadMessage::Connected(Err(e.to_string())));
             }
         });
     }
@@ -98,11 +96,9 @@ impl eframe::App for ChatApp {
             }
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            match self.state {
-                AppState::Connect => self.show_connect_screen(ui),
-                AppState::Chat => self.show_chat_screen(ui),
-            }
+        egui::CentralPanel::default().show(ctx, |ui| match self.state {
+            AppState::Connect => self.show_connect_screen(ui),
+            AppState::Chat => self.show_chat_screen(ui, ctx),
         });
     }
 }
@@ -130,31 +126,39 @@ impl ChatApp {
         });
     }
 
-    fn show_chat_screen(&mut self, ui: &mut egui::Ui) {
+    fn show_chat_screen(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.vertical(|ui| {
             ui.heading("Chat");
             ui.separator();
-            
+
             egui::ScrollArea::vertical()
-                .max_height(ui.available_height() - 50.0)
+                .auto_shrink([false; 2])
+                .stick_to_bottom(true)
+                .max_height(ui.available_height() - 40.0)
                 .show(ui, |ui| {
                     for msg in &self.messages {
                         ui.label(msg);
                     }
                 });
-            
-            ui.separator();
 
-ui.horizontal(|ui| {
-    ui.add(
-        egui::TextEdit::singleline(&mut self.message_input)
-            .desired_width(ui.available_width() - 80.0),
-    );
-    if ui.button("Send").clicked() {
-        self.send_message();
-    }
-});
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+                ui.separator();
+                ui.horizontal(|ui| {
+                    let text_edit = ui.add(
+                        egui::TextEdit::singleline(&mut self.message_input)
+                            .desired_width(ui.available_width() - 60.0),
+                    );
 
+                    if text_edit.lost_focus() && ctx.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        self.send_message();
+                        text_edit.request_focus();
+                    }
+
+                    if ui.button("Send").clicked() {
+                        self.send_message();
+                    }
+                });
+            });
         });
     }
 
@@ -174,7 +178,7 @@ ui.horizontal(|ui| {
 
 fn main() {
     let options = eframe::NativeOptions::default();
-    eframe::run_native(
+    let _ = eframe::run_native(
         "Chat Application",
         options,
         Box::new(|_cc| Ok(Box::new(ChatApp::new()))),
