@@ -1,12 +1,12 @@
 mod connection;
 mod message;
 
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::net::TcpStream;
-use eframe::egui;
-use crate::{ui, net};
+use crate::{net, ui};
 pub use connection::AppState;
+use eframe::egui;
 pub use message::ThreadMessage;
+use std::net::TcpStream;
+use std::sync::mpsc::{self, Receiver, Sender};
 
 pub struct ChatApp {
     pub state: AppState,
@@ -37,11 +37,7 @@ impl ChatApp {
     }
 
     pub fn try_connect(&mut self) {
-        net::try_connect(
-            self.ip.clone(),
-            self.port.clone(),
-            self.tx.clone(),
-        );
+        net::try_connect(self.ip.clone(), self.port.clone(), self.tx.clone());
     }
 
     pub fn disconnect(&mut self) {
@@ -52,11 +48,7 @@ impl ChatApp {
 
     pub fn send_message(&mut self) {
         if let Some(stream) = &mut self.stream {
-            net::send_message(
-                stream,
-                &self.message_input,
-                &mut self.messages,
-            );
+            net::send_message(stream, &self.message_input, &mut self.messages);
             self.message_input.clear();
         }
     }
